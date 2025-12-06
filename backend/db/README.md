@@ -98,16 +98,15 @@ Useful for UI + backend preview.
 
 | Email | Password | Role |
 |-------|----------|------|
-| prof1@classroom.test | Test1234! | professor |
-| prof2@classroom.test | Test1234! | professor |
+| prof1@classroom.test | test1234 | professor |
+| prof2@classroom.test | test1234 | professor |
 
 ### 🧑‍🎓 Students (normal users)
 
 | Email | Password | Role |
 |-------|----------|------|
-| student1@classroom.test | Test1234! | student |
-| student2@classroom.test | Test1234! | student |
-| student3@classroom.test | Test1234! | student |
+| student1@classroom.test | test1234 | student |
+| yamin310702@gmail.com | test1234 | student |
 
 Students **cannot** create reservations but can search rooms + save favorites.
 
