@@ -1,0 +1,1 @@
+INSERT INTO "public"."buildings" ("id", "code", "name") VALUES ('1', '207', '207관'), ('2', '208', '208관'), ('3', '310', '310관');

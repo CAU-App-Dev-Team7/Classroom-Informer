@@ -1,0 +1,1 @@
+INSERT INTO "public"."reservations" ("id", "room_id", "user_id", "start_at", "end_at", "purpose", "status", "created_at") VALUES ('9', '1', '9babdb0a-9063-40e0-9e97-ebf58ca8659f', '2025-12-07 15:00:00+00', '2025-12-07 16:00:00+00', 'Test study reservation', 'confirmed', '2025-12-06 21:20:18.533594+00');
