@@ -1,102 +1,177 @@
 -- schema.sql
--- Core database schema for Classroom Informer (Supabase / Postgres)
+-- Classroom Informer – core database schema
+-- Run this on a fresh database (or compare carefully with an existing one before running).
 
--- 1. Enum for Korean weekdays
+-- =========================
+-- Extensions
+-- =========================
+create extension if not exists "uuid-ossp";
+create extension if not exists "btree_gist";
+
+-- =========================
+-- Types
+-- =========================
+-- Day of week enum used by timetable_entries
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_type
+    where typname = 'day_of_week'
+  ) then
+    create type public.day_of_week as enum (
+      '월', '화', '수', '목', '금', '토', '일'
+    );
+  end if;
+end$$;
+
+-- =========================
+-- TABLE: buildings
+-- =========================
+create table if not exists public.buildings (
+  id      bigint generated always as identity primary key,
+  code    text not null unique,
+  name    text
+);
+
+-- =========================
+-- TABLE: rooms
+-- =========================
+create table if not exists public.rooms (
+  id          bigint generated always as identity primary key,
+  building_id bigint not null references public.buildings(id),
+  room_number text   not null,
+  capacity    integer,
+  room_type   text,
+  features    text,
+  photo_url   text
+);
+
+-- =========================
+-- TABLE: raw_timetable_csv
+-- (staging table for original CSV rows)
+-- =========================
+create table if not exists public.raw_timetable_csv (
+  day         text not null,
+  start_time  time not null,
+  end_time    time not null,
+  code        text,
+  course      text,
+  department  text,
+  professor   text,
+  room        text,
+  building    text,
+  source_file text
+);
+
+-- =========================
+-- TABLE: profiles
+-- (user profiles, linked to auth.users)
+-- =========================
+create table if not exists public.profiles (
+  id         uuid primary key references auth.users(id),
+  name       text,
+  role       text default 'student',   -- 'student' | 'professor' | 'admin'
+  created_at timestamptz default now()
+);
+
+-- =========================
+-- TABLE: favorites
+-- (user's favorite rooms)
+-- =========================
+create table if not exists public.favorites (
+  user_id    uuid   not null references public.profiles(id) on delete cascade,
+  room_id    bigint not null references public.rooms(id)     on delete cascade,
+  created_at timestamptz default now(),
+  constraint favorites_pkey primary key (user_id, room_id)
+);
+
+-- =========================
+-- TABLE: reservations
+-- (room reservations made by professors/admins)
+-- =========================
+create table if not exists public.reservations (
+  id         bigint generated always as identity primary key,
+  room_id    bigint not null references public.rooms(id),
+  user_id    uuid   not null default auth.uid()
+                     references public.profiles(id),
+  start_at   timestamptz not null,
+  end_at     timestamptz not null,
+  purpose    text,
+  status     text default 'confirmed',  -- e.g. 'confirmed', 'cancelled'
+  created_at timestamptz default now()
+);
+
+-- Prevent overlapping reservations for the same room
+-- NOTE: columns are timestamptz, so use tstzrange (not tsrange).
+alter table public.reservations
+  add constraint reservation_no_overlap
+  exclude using gist (
+    room_id WITH =,
+    tstzrange(start_at, end_at, '[)') WITH &&
+  );
+
+-- Optional: ensure start_at < end_at
+alter table public.reservations
+  add constraint reservation_valid_time
+  check (start_at < end_at);
+
+-- =========================
+-- TABLE: timetable_entries
+-- (normalized semester timetable)
+-- =========================
+create table if not exists public.timetable_entries (
+  id          bigint generated always as identity primary key,
+  room_id     bigint not null references public.rooms(id) on delete cascade,
+  day         public.day_of_week not null,
+  start_time  time not null,
+  end_time    time not null,
+  course_code text,
+  course_name text,
+  department  text,
+  instructor  text,
+  source      text default 'Final_timetable.csv',
+  created_at  timestamptz default now()
+);
+
+-- Helpful indexes for queries
+create index if not exists idx_rooms_building_room
+  on public.rooms (building_id, room_number);
+
+create index if not exists idx_timetable_room_day_time
+  on public.timetable_entries (room_id, day, start_time, end_time);
+
+create index if not exists idx_reservations_room_time
+  on public.reservations (room_id, start_at, end_at);
+
+create index if not exists idx_favorites_user
+  on public.favorites (user_id);
+
+-- 1) Needed once per database
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- 2) Start must be before end
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_type
-    WHERE typname = 'day_of_week'
-      AND typnamespace = 'public'::regnamespace
-  ) THEN
-    CREATE TYPE public.day_of_week AS ENUM ('월','화','수','목','금','토','일');
-  END IF;
-END;
-$$;
+  ALTER TABLE public.reservations
+  ADD CONSTRAINT reservation_start_before_end
+  CHECK (start_at < end_at);
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL; -- constraint already exists
+END $$;
 
--- 2. Buildings (207, 208, 310, 505, ...)
-CREATE TABLE IF NOT EXISTS public.buildings (
-  id   BIGSERIAL PRIMARY KEY,
-  code TEXT NOT NULL UNIQUE,  -- e.g. '310'
-  name TEXT                   -- e.g. '310관'
-);
+-- 3) No overlapping reservations for the same room
+DO $$
+BEGIN
+  ALTER TABLE public.reservations
+  ADD CONSTRAINT reservation_no_overlap
+  EXCLUDE USING gist (
+    room_id WITH =,
+    tstzrange(start_at, end_at, '[)') WITH &&
+  );
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL; -- constraint already exists
+END $$;
 
--- 3. Rooms (per building)
-CREATE TABLE IF NOT EXISTS public.rooms (
-  id           BIGSERIAL PRIMARY KEY,
-  building_id  BIGINT NOT NULL REFERENCES public.buildings(id) ON DELETE CASCADE,
-  room_number  TEXT   NOT NULL,      -- e.g. '603'
-  capacity     INTEGER,
-  room_type    TEXT,
-  features     TEXT,
-  CONSTRAINT rooms_unique_building_room UNIQUE (building_id, room_number)
-);
-
--- 4. Raw timetable CSV staging table
---    Used only for import; data loaded from Supabase CSV.
-CREATE TABLE IF NOT EXISTS public.raw_timetable_csv (
-  day         TEXT NOT NULL,              -- '월','화',...
-  start_time  TIME NOT NULL,
-  end_time    TIME NOT NULL,
-  code        TEXT,                       -- course code
-  course      TEXT,                       -- course name
-  department  TEXT,
-  professor   TEXT,
-  room        TEXT,                       -- room number, e.g. '603'
-  building    TEXT,                       -- building code, e.g. '310'
-  source_file TEXT                        -- e.g. 'Final_timetable.csv'
-);
-
--- 5. Normalized timetable entries
-CREATE TABLE IF NOT EXISTS public.timetable_entries (
-  id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  room_id      BIGINT NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
-  day          public.day_of_week NOT NULL,
-  start_time   TIME NOT NULL,
-  end_time     TIME NOT NULL,
-  course_code  TEXT,
-  course_name  TEXT,
-  department   TEXT,
-  instructor   TEXT,
-  source       TEXT DEFAULT 'Final_timetable.csv',
-  created_at   TIMESTAMPTZ DEFAULT now()
-);
-
--- 6. Profiles (linked to Supabase auth.users)
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id         UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  name       TEXT,
-  role       TEXT DEFAULT 'student',  -- 'student','professor','admin'
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 7. Favorites (user’s favorite rooms)
-CREATE TABLE IF NOT EXISTS public.favorites (
-  user_id    UUID   NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  room_id    BIGINT NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  CONSTRAINT favorites_pkey PRIMARY KEY (user_id, room_id)
-);
-
--- 8. Reservations (professors reserving rooms)
-CREATE TABLE IF NOT EXISTS public.reservations (
-  id         BIGSERIAL PRIMARY KEY,
-  room_id    BIGINT NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
-  user_id    UUID   NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  start_at   TIMESTAMPTZ NOT NULL,
-  end_at     TIMESTAMPTZ NOT NULL,
-  purpose    TEXT,
-  status     TEXT DEFAULT 'confirmed', -- 'pending','confirmed','cancelled'
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 9. Helpful indexes for performance
-CREATE INDEX IF NOT EXISTS idx_rooms_building_id
-  ON public.rooms (building_id);
-
-CREATE INDEX IF NOT EXISTS idx_timetable_room_day_time
-  ON public.timetable_entries (room_id, day, start_time, end_time);
-
-CREATE INDEX IF NOT EXISTS idx_reservations_room_time_status
-  ON public.reservations (room_id, start_at, end_at, status);
