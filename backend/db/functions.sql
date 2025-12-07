@@ -1,3 +1,13 @@
+-- functions.sql
+-- Classroom Informer – custom functions
+
+-- Make sure required extensions exist
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- =====================================================
+-- 1) Available rooms right now
+--    Uses timetables + reservations, filtered by building
+-- =====================================================
 CREATE OR REPLACE FUNCTION public.available_rooms_now(p_building_code text)
 RETURNS TABLE(room_id bigint, building_code text, room_number text)
 LANGUAGE plpgsql
@@ -20,29 +30,52 @@ BEGIN
       END AS dow
   )
   SELECT
-    r.id AS room_id,
-    b.code AS building_code,
-    r.room_number AS room_number
+    r.id         AS room_id,
+    b.code       AS building_code,
+    r.room_number
   FROM public.rooms r
   JOIN public.buildings b
     ON r.building_id = b.id
   CROSS JOIN now_korea n
-  LEFT JOIN public.timetable_entries te
-    ON te.room_id = r.id
-   AND te.day = n.dow
-   AND n.t BETWEEN te.start_time AND te.end_time
   WHERE
-    te.id IS NULL
-    AND (p_building_code IS NULL OR b.code = p_building_code)
+    -- if p_building_code is given, limit to that building
+    (p_building_code IS NULL OR b.code = p_building_code)
+    -- not in a scheduled class
     AND NOT EXISTS (
-          SELECT 1
-          FROM public.reservations rs
-          WHERE rs.room_id = r.id
-            AND rs.status = 'confirmed'
-            AND n.now_ts BETWEEN rs.start_at AND rs.end_at
-        )
+      SELECT 1
+      FROM public.timetable_entries te
+      WHERE te.room_id = r.id
+        AND te.day = n.dow
+        AND n.t BETWEEN te.start_time AND te.end_time
+    )
+    -- not reserved at this moment
+    AND NOT EXISTS (
+      SELECT 1
+      FROM public.reservations rs
+      WHERE rs.room_id = r.id
+        AND rs.status = 'confirmed'
+        AND n.now_ts BETWEEN rs.start_at AND rs.end_at
+    )
   ORDER BY r.room_number;
 END;
 $function$;
 
-CREATE EXTENSION IF NOT EXISTS btree_gist;
+-- =====================================================
+-- 2) handle_new_user trigger
+--    Automatically create a profile row when a new auth user is created
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+BEGIN
+  -- Create a profile row for this new auth user.
+  -- Only 'id' is required; other columns use defaults.
+  INSERT INTO public.profiles (id)
+  VALUES (NEW.id)
+  ON CONFLICT (id) DO NOTHING;  -- avoid error if row already exists
+
+  RETURN NEW;
+END;
+$function$;
