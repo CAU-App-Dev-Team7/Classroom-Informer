@@ -7,6 +7,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# 라우터 등록
+app.include_router(auth.router)           # /auth/signup, /auth/login
+app.include_router(favorites.router)      # /favorites (Protected)
+app.include_router(notifications.router)  # /notifications (Protected)
+
 @app.get("/")
 def root():
     return {"message": "Classroom Informer API is running!"}
