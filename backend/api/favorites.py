@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
-from ..core.config import supabase
-from ..core.dependencies import get_current_user_id
-from ..model.models import FavoriteToggleRequest, FavoriteResponse, RoomDetail
+from core.config import supabase
+from core.dependencies import get_current_user_id
+from model.models import FavoriteToggleRequest, FavoriteResponse, RoomDetail
 
 router = APIRouter(
     prefix="/favorites",
