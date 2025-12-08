@@ -179,71 +179,98 @@ async def get_free_slots_by_room(
     """
     try:
         # 1. building_code -> building_id
-        building_res = supabase.table("buildings").select("id").eq("code", building_code).single().execute()
-        if not building_res.data:
+        building_res = supabase.table("buildings") \
+            .select("id") \
+            .eq("code", building_code) \
+            .maybe_single() \
+            .execute()
+
+        if not getattr(building_res, "data", None):
             raise HTTPException(status_code=404, detail=f"Building code '{building_code}' not found")
-        building_id = building_res.data['id']
+
+        building_id = building_res.data["id"]
 
         # 2. room_number -> room_id
-        room_res = supabase.table("rooms")\
-            .select("id")\
-            .eq("building_id", building_id)\
-            .eq("room_number", room_number)\
-            .single()\
+        room_res = (
+            supabase.table("rooms")
+            .select("id")
+            .eq("building_id", building_id)
+            .eq("room_number", room_number)
+            .maybe_single()
             .execute()
-        if not room_res.data:
-            raise HTTPException(status_code=404, detail=f"Room '{room_number}' in {building_code} not found")
-        room_id = room_res.data['id']
+        )
 
-        # 3. timetable_entries 조회
-        timetable_res = supabase.table("timetable_entries")\
-            .select("day,start_time,end_time")\
-            .eq("room_id", room_id)\
-            .order("day")\
-            .order("start_time")\
+        if not getattr(room_res, "data", None):
+            raise HTTPException(status_code=404,
+                                detail=f"Room '{room_number}' in {building_code} not found")
+
+        room_id = room_res.data["id"]
+
+        # 3. timetable_entries: 0 rows여도 에러 없이 [] 반환
+        timetable_res = (
+            supabase.table("timetable_entries")
+            .select("day,start_time,end_time")
+            .eq("room_id", room_id)
+            .order("day")
+            .order("start_time")
             .execute()
+        )
 
         occupied_entries = timetable_res.data or []
 
-        # 4. 요일별 빈 시간 계산
+        # 4. 요일 목록
         days = ["월", "화", "수", "목", "금"]
 
-        free_slots_by_day: Dict[str, List[Dict]] = {}
+        free_slots_by_day = {}
 
         for day in days:
+            # 해당 요일의 수업만 필터링
             day_entries = [e for e in occupied_entries if e["day"] == day]
+
+            # 시작 기준 시간 세팅
             current_start = start_time
-            free_slots: List[Dict] = []
+            free_slots = []
 
             for entry in day_entries:
                 entry_start = datetime.strptime(entry["start_time"], "%H:%M:%S").time()
                 entry_end = datetime.strptime(entry["end_time"], "%H:%M:%S").time()
 
+                # 수업이 이미 현재 시간 이전이면 스킵
                 if entry_end <= current_start:
                     continue
+
+                # 수업이 현재 시작 시간 이후라면 빈 시간 존재
                 if entry_start > current_start:
                     free_slots.append({
                         "start": current_start.strftime("%H:%M"),
-                        "end": entry_start.strftime("%H:%M")
+                        "end": entry_start.strftime("%H:%M"),
                     })
+
+                # 다음 탐색 시작 시간 업데이트
                 if entry_end > current_start:
                     current_start = entry_end
 
+            # 마지막 수업 이후 end_time까지 free
             if current_start < end_time:
                 free_slots.append({
                     "start": current_start.strftime("%H:%M"),
-                    "end": end_time.strftime("%H:%M")
+                    "end": end_time.strftime("%H:%M"),
                 })
 
             free_slots_by_day[day] = free_slots
 
-        return [{
-            "building_code": building_code,
-            "room_number": room_number,
-            "free_slots_by_day": free_slots_by_day
-        }]
+        # 최종 응답
+        return [
+            {
+                "building_code": building_code,
+                "room_number": room_number,
+                "free_slots_by_day": free_slots_by_day
+            }
+        ]
 
     except HTTPException as e:
         raise e
+
     except Exception as e:
+        # 디버깅 편하게 DB 에러 메시지 그대로 출력
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
