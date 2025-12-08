@@ -342,15 +342,38 @@ async def get_available_rooms(
                     all_free = False
                     break
 
-                slot_start = parts[0].strip() + ":00"
-                slot_end = parts[1].strip() + ":00"
+            # 5) 요청 슬롯 시간을 time 객체로 변환
+                try:
+                    # 요청 슬롯은 HH:MM 형식이므로, datetime.strptime을 사용하여 time 객체로 파싱
+                    req_start_time = datetime.strptime(parts[0].strip(), "%H:%M").time()
+                    req_end_time = datetime.strptime(parts[1].strip(), "%H:%M").time()
+                except ValueError:
+                    # 요청 형식이 잘못되면 건너뜁니다.
+                    all_free = False 
+                    break
 
                 for entry in occupied:
-                    entry_start = entry["start_time"]
-                    entry_end = entry["end_time"]
+                    # 2. DB 엔트리 시간을 time 객체로 변환 (HH:MM:SS 또는 HH:MM:SS.microseconds 처리)
+                    # Supabase 응답은 문자열이므로, datetime.strptime을 사용하여 처리합니다.
+                    try:
+                        # DB 시간 형식이 HH:MM:SS라고 가정
+                        db_start_time = datetime.strptime(entry["start_time"], "%H:%M:%S").time()
+                        db_end_time = datetime.strptime(entry["end_time"], "%H:%M:%S").time()
+                    except ValueError:
+                        # 만약 DB 형식이 HH:MM:SS.microseconds라면 이 부분에서 오류가 나므로, 
+                        # .split('.')을 사용하거나 더 유연한 파싱 로직이 필요합니다.
+                        # (일단은 HH:MM:SS를 고수합니다.)
+                        try:
+                            db_start_time = datetime.strptime(entry["start_time"].split(".")[0], "%H:%M:%S").time()
+                            db_end_time = datetime.strptime(entry["end_time"].split(".")[0], "%H:%M:%S").time()
+                        except ValueError:
+                            # 파싱 불가 시 해당 엔트리 무시
+                            continue 
 
-                    # 겹치는 경우
-                    if not (entry_end <= slot_start or entry_start >= slot_end):
+
+                    # 3. time 객체를 사용하여 겹침 여부 확인 (문자열 비교보다 안전함)
+                    # [겹치는 경우] (entry_end <= req_start_time 또는 entry_start_time >= req_end_time) 가 아닌 경우
+                    if not (db_end_time <= req_start_time or db_start_time >= req_end_time):
                         all_free = False
                         break
 
@@ -359,7 +382,7 @@ async def get_available_rooms(
 
             if all_free:
                 available_rooms.append({
-                    "room_id": room_id,
+                    "room_id": room["id"], # room_id는 int 타입이므로 room["id"]로 수정 (AvailableRoomDto의 room_id는 Int)
                     "building_code": building_code,
                     "room_number": room["room_number"],
                     "type": room.get("type")
