@@ -66,7 +66,14 @@ async def get_rooms(
             # 필터링이 없으면 전체 조회
             response = supabase.table("rooms").select(query).execute()
         
-        return response.data
+        data = response.data
+
+        # 💡 [추가] 데이터 후처리: building 객체에서 code를 꺼내 building_code로 격상
+        for item in data:
+            if item.get("building"):
+                item["building_code"] = item["building"]["code"]
+        
+        return data
 
     except HTTPException as e:
         # 404 오류는 그대로 반환
@@ -145,10 +152,15 @@ async def get_room_by_id(
             .single()\
             .execute()
         
-        if not response.data:
+        data = response.data
+        if not data:
              raise HTTPException(status_code=404, detail=f"Room ID {room_id} not found")
+
+        # 💡 [추가] 데이터 후처리: building_code 평탄화
+        if data.get("building"):
+            data["building_code"] = data["building"]["code"]
              
-        return response.data
+        return data
 
     except HTTPException as e:
         raise e

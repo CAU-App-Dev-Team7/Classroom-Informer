@@ -17,7 +17,8 @@ class RoomResponse(BaseModel):
     room_type: Optional[str] = None
     features: Optional[str] = None
     photo_url: Optional[str] = None
-    # JOIN된 건물 정보
+    building_code: Optional[str] = None     
+    # (참고) 내부적으로 JOIN용 객체는 유지하거나, 필요 없으면 제외 가능
     building: Optional[BuildingResponse] = None
 
 # --- Timetable Entries 모델 ---
