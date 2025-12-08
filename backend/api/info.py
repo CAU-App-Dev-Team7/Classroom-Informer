@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, status, Query, Depends
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query
+from typing import List, Optional, Dict
 from core.config import supabase
-from core.dependencies import get_current_user_id # 필요시 사용
 from datetime import time, datetime
 from model.models import (
     BuildingResponse,
@@ -13,6 +12,11 @@ router = APIRouter(
     prefix="/info",
     tags=["Public Info"]
 )
+
+# 전체 강의실 사용 가능 시간대
+DEFAULT_START_TIME = time(9, 0)   # 09:00
+DEFAULT_END_TIME = time(20, 0)    # 20:00
+
 
 # ----------------------------------------
 # GET /info/buildings
@@ -154,6 +158,90 @@ async def get_timetable_by_room(
             .execute()
 
         return timetable_res.data
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+# ----------------------------------------
+# GET /info/room/timetable/free-slots
+# ----------------------------------------
+@router.get("/room/timetable/free-slots", response_model=List[Dict])
+async def get_free_slots_by_room(
+    building_code: str = Query(..., description="조회할 건물 코드"),
+    room_number: str = Query(..., description="조회할 강의실 번호"),
+    start_time: time = Query(DEFAULT_START_TIME, description="조회 시작 시간"),
+    end_time: time = Query(DEFAULT_END_TIME, description="조회 종료 시간")
+):
+    """
+    특정 강의실의 전체 시간표를 기준으로 요일별 빈 시간대를 반환합니다.
+    """
+    try:
+        # 1. building_code -> building_id
+        building_res = supabase.table("buildings").select("id").eq("code", building_code).single().execute()
+        if not building_res.data:
+            raise HTTPException(status_code=404, detail=f"Building code '{building_code}' not found")
+        building_id = building_res.data['id']
+
+        # 2. room_number -> room_id
+        room_res = supabase.table("rooms")\
+            .select("id")\
+            .eq("building_id", building_id)\
+            .eq("room_number", room_number)\
+            .single()\
+            .execute()
+        if not room_res.data:
+            raise HTTPException(status_code=404, detail=f"Room '{room_number}' in {building_code} not found")
+        room_id = room_res.data['id']
+
+        # 3. timetable_entries 조회
+        timetable_res = supabase.table("timetable_entries")\
+            .select("day,start_time,end_time")\
+            .eq("room_id", room_id)\
+            .order("day")\
+            .order("start_time")\
+            .execute()
+
+        occupied_entries = timetable_res.data or []
+
+        # 4. 요일별 빈 시간 계산
+        days = ["월", "화", "수", "목", "금"]
+
+        free_slots_by_day: Dict[str, List[Dict]] = {}
+
+        for day in days:
+            day_entries = [e for e in occupied_entries if e["day"] == day]
+            current_start = start_time
+            free_slots: List[Dict] = []
+
+            for entry in day_entries:
+                entry_start = datetime.strptime(entry["start_time"], "%H:%M:%S").time()
+                entry_end = datetime.strptime(entry["end_time"], "%H:%M:%S").time()
+
+                if entry_end <= current_start:
+                    continue
+                if entry_start > current_start:
+                    free_slots.append({
+                        "start": current_start.strftime("%H:%M"),
+                        "end": entry_start.strftime("%H:%M")
+                    })
+                if entry_end > current_start:
+                    current_start = entry_end
+
+            if current_start < end_time:
+                free_slots.append({
+                    "start": current_start.strftime("%H:%M"),
+                    "end": end_time.strftime("%H:%M")
+                })
+
+            free_slots_by_day[day] = free_slots
+
+        return [{
+            "building_code": building_code,
+            "room_number": room_number,
+            "free_slots_by_day": free_slots_by_day
+        }]
 
     except HTTPException as e:
         raise e
