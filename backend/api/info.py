@@ -50,6 +50,7 @@ async def get_rooms(
     try:
         if building_code:
             # 1. 🏢 building_code를 사용하여 building_id를 조회합니다.
+            building_code = building_code.strip()
             building_res = supabase.table("buildings").select("id").eq("code", building_code).single().execute()
             
             # 조회 결과가 없다면 404 반환
@@ -93,7 +94,9 @@ async def get_room_by_identifier(
 
     try:
         # 1. 🏢 building_code를 사용하여 building_id를 조회합니다.
-        building_res = supabase.table("buildings").select("id").eq("code", building_code).single().execute()
+        if building_code:
+            building_code = building_code.strip()
+            building_res = supabase.table("buildings").select("id").eq("code", building_code).single().execute()
         
         if not building_res.data:
              raise HTTPException(status_code=404, detail=f"Building code '{building_code}' not found")
@@ -135,12 +138,14 @@ async def get_timetable_by_room(
     """
     try:
         # 1. building_code -> building_id
+        building_code = building_code.strip()
         building_res = supabase.table("buildings").select("id").eq("code", building_code).single().execute()
         if not building_res.data:
             raise HTTPException(status_code=404, detail=f"Building code '{building_code}' not found")
         building_id = building_res.data['id']
 
         # 2. room_number -> room_id
+        room_number = room_number.strip()
         room_res = supabase.table("rooms")\
             .select("id")\
             .eq("building_id", building_id)\
@@ -178,6 +183,7 @@ async def get_free_slots_by_room(
 ):
     try:
         # 1. building_code -> building_id
+        building_code = building_code.strip()
         building_res = (
             supabase.table("buildings")
             .select("id")
@@ -192,6 +198,7 @@ async def get_free_slots_by_room(
         building_id = building_res.data["id"]
 
         # 2. room_number -> room_id
+        room_number = room_number.strip()
         room_res = (
             supabase.table("rooms")
             .select("id")
@@ -284,6 +291,7 @@ async def get_available_rooms(
     """
     try:
         # 1) building_code → building_id
+        building_code = building_code.strip()
         building_res = (
             supabase.table("buildings")
             .select("id")
