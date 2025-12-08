@@ -1,6 +1,39 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import time, datetime
+
+# --- Buildings 모델 ---
+class BuildingResponse(BaseModel):
+    id: int
+    code: str
+    name: Optional[str] = None
+
+# --- Rooms 모델 ---
+class RoomResponse(BaseModel):
+    id: int
+    building_id: int
+    room_number: str
+    capacity: Optional[int] = None
+    room_type: Optional[str] = None
+    features: Optional[str] = None
+    photo_url: Optional[str] = None
+    # JOIN된 건물 정보
+    building: Optional[BuildingResponse] = None
+
+# --- Timetable Entries 모델 ---
+class TimetableEntryResponse(BaseModel):
+    id: int
+    room_id: int
+    day: str  # public.day_of_week ENUM은 문자열로 처리
+    start_time: time
+    end_time: time
+    course_code: Optional[str] = None
+    course_name: Optional[str] = None
+    department: Optional[str] = None
+    instructor: Optional[str] = None
+    source: Optional[str] = None
+    created_at: Optional[datetime] = None
+
 
 # --- 즐겨찾기 관련 모델 ---
 class FavoriteToggleRequest(BaseModel):
