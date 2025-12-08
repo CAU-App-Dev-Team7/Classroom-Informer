@@ -22,7 +22,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Supabase values injected into BuildConfig
+
         buildConfigField(
             type = "String",
             name = "SUPABASE_URL",
@@ -61,7 +61,6 @@ android {
         buildConfig = true   // ✅ enable BuildConfig so buildConfigField works
     }
 }
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -73,10 +72,24 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation("androidx.navigation:navigation-compose:2.8.3")
 
-    // Supabase dependencies
-    implementation("io.github.jan-tennert.supabase:gotrue-kt:2.4.0")
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.4.0")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:2.4.0")
+    //-----------------------------------------------------
+    // 🔥 Retrofit + OkHttp 추가
+    //-----------------------------------------------------
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
+    //-----------------------------------------------------
+    // Supabase (이미 넣은 내용)
+    //-----------------------------------------------------
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.6.1"))
+    implementation("io.github.jan-tennert.supabase:supabase-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
+
+    implementation("io.ktor:ktor-client-android:2.3.10")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

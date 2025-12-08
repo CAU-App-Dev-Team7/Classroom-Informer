@@ -134,7 +134,8 @@ fun FavouritesScreen(
     val notificationRepo = remember { SharedPrefsNotificationRepository(context) }
 
     // Backend-ready repository – later you can inject a real implementation
-    val favouritesRepository = remember { InMemoryFavouriteRoomRepository() }
+    // 실제 FastAPI + Supabase favorites API 연동
+    val favouritesRepository = remember { RemoteFavouriteRoomRepository() }
     val scope = rememberCoroutineScope()
 
     var favouriteRooms by remember { mutableStateOf<List<FavouriteRoom>>(emptyList()) }

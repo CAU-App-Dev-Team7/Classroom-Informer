@@ -31,7 +31,7 @@ fun ClassroomInformerApp() {
 
                 // -------- LOGIN --------
                 composable("login") {
-                    LoginScreen { email, _password, role ->
+                    LoginScreen { email: String, _password: String, role: UserRole ->
 
                         val userName = if (email.isNotBlank()) {
                             email.substringBefore("@")
@@ -59,11 +59,19 @@ fun ClassroomInformerApp() {
 
                     StudentMainScreen(
                         userName = userName,
-                        onSearchClick = { navController.navigate("search") },
-                        onTimetableClick = { navController.navigate("timetable_student/$userName") },
-                        onFavouritesClick = { navController.navigate("favourites/$userName") },
+                        onSearchClick = {
+                            navController.navigate("search/student/$userName")
+                        },
+                        onTimetableClick = {
+                            navController.navigate("timetable_student/$userName")
+                        },
+                        onFavouritesClick = {
+                            navController.navigate("favourites/$userName")
+                        },
                         onMapClick = { navController.navigate("map") },
-                        onNotificationsClick = { navController.navigate("notifications/$userName") },
+                        onNotificationsClick = {
+                            navController.navigate("notifications/$userName")
+                        },
                         onLogoutClick = {
                             navController.navigate("login") {
                                 popUpTo("login") { inclusive = true }
@@ -78,12 +86,24 @@ fun ClassroomInformerApp() {
 
                     ProfessorMainScreen(
                         userName = userName,
-                        onSearchClick = { navController.navigate("search") },
-                        onTimetableClick = { navController.navigate("timetable_professor/$userName") },
-                        onFavouritesClick = { navController.navigate("favourites/$userName") },
-                        onReservationsClick = { navController.navigate("reservationSearch") },
+                        onSearchClick = {
+                            // normal search (same as student)
+                            navController.navigate("search/student/$userName")
+                        },
+                        onTimetableClick = {
+                            navController.navigate("timetable_professor/$userName")
+                        },
+                        onFavouritesClick = {
+                            navController.navigate("favourites/$userName")
+                        },
+                        onReservationsClick = {
+                            // 🔹 RESERVATION ICON → same SearchScreen but reservation mode
+                            navController.navigate("search/prof_reservation/$userName")
+                        },
                         onMapClick = { navController.navigate("map") },
-                        onNotificationsClick = { navController.navigate("notifications/$userName") },
+                        onNotificationsClick = {
+                            navController.navigate("notifications/$userName")
+                        },
                         onLogoutClick = {
                             navController.navigate("login") {
                                 popUpTo("login") { inclusive = true }
@@ -99,21 +119,33 @@ fun ClassroomInformerApp() {
                     )
                 }
 
-                // ✅✅✅ STUDENT SEARCH (FIXED)
-                composable("search") {
+                // -------- SEARCH (STUDENT) --------
+                composable("search/student/{userName}") { _ ->
                     SearchScreen(
                         onBack = { navController.popBackStack() },
-                        onSearchComplete = { _selectedSlots ->
-                            navController.navigate("roomsList")
-                        }
-                    )
+                        isReservationMode = false
+                    ) { selectedSlots: List<String> ->
+                        // TODO: pass selectedSlots to RoomsList if needed
+                        navController.navigate("roomsList")
+                    }
+                }
+
+                // -------- SEARCH (PROFESSOR RESERVATION) --------
+                composable("search/prof_reservation/{userName}") { _ ->
+                    SearchScreen(
+                        onBack = { navController.popBackStack() },
+                        isReservationMode = true
+                    ) { selectedSlots: List<String> ->
+                        // TODO: here later call reservation API using selectedSlots
+                        navController.navigate("roomsList")
+                    }
                 }
 
                 // -------- ROOM LIST --------
                 composable("roomsList") {
                     RoomsListScreen(
                         onBack = { navController.popBackStack() },
-                        onRoomClick = { roomId ->
+                        onRoomClick = { roomId: String ->
                             navController.currentBackStackEntry
                                 ?.savedStateHandle
                                 ?.set("roomId", roomId)
@@ -135,42 +167,6 @@ fun ClassroomInformerApp() {
                     )
                 }
 
-                // ✅✅✅ PROFESSOR RESERVATION SEARCH (FIXED)
-                composable("reservationSearch") {
-                    ReservationSearchScreen(
-                        onBack = { navController.popBackStack() },
-                        onSearchDone = {
-                            navController.navigate("seminarRooms")
-                        }
-                    )
-                }
-
-                // -------- SEMINAR ROOMS --------
-                composable("seminarRooms") {
-                    SeminarRoomsListScreen(
-                        onBack = { navController.popBackStack() },
-                        onRoomClick = { roomId ->
-                            navController.currentBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("roomId", roomId)
-
-                            navController.navigate("seminarRoomDetail")
-                        }
-                    )
-                }
-
-                // -------- SEMINAR ROOM DETAIL --------
-                composable("seminarRoomDetail") {
-                    val roomId = navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.get<String>("roomId") ?: "Seminar Room"
-
-                    SeminarRoomDetailScreen(
-                        roomId = roomId,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
                 // -------- STUDENT TIMETABLE --------
                 composable("timetable_student/{userName}") { backStackEntry ->
                     val userName = backStackEntry.arguments?.getString("userName") ?: "guest"
@@ -179,7 +175,7 @@ fun ClassroomInformerApp() {
                         userName = userName,
                         onBackClick = { navController.popBackStack() },
                         onEmptySlotClick = {
-                            navController.navigate("search")
+                            navController.navigate("search/student/$userName")
                         }
                     )
                 }
@@ -192,7 +188,7 @@ fun ClassroomInformerApp() {
                         userName = userName,
                         onBackClick = { navController.popBackStack() },
                         onEmptySlotClick = {
-                            navController.navigate("reservationSearch")
+                            navController.navigate("search/prof_reservation/$userName")
                         }
                     )
                 }
@@ -239,5 +235,3 @@ fun ClassroomInformerApp() {
         }
     }
 }
-
-

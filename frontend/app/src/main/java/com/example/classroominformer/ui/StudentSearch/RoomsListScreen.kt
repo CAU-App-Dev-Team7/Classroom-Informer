@@ -6,67 +6,70 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.classroominformer.ui.components.TopBlueHeader
 
 @Composable
 fun RoomsListScreen(
-    onBack: () -> Unit,                      // ⭐ ADDED THIS
-    onRoomClick: (String) -> Unit           // ⭐ Existing
+    onBack: () -> Unit,
+    onRoomClick: (String) -> Unit
 ) {
+    // TODO: later replace with data from Supabase / FastAPI
     val rooms = listOf(
-        "310-728" to "Lecture Room",
-        "310-729" to "Computer Lab",
-        "310-701" to "Design Studio",
-        "310-703" to "Conference Room",
-        "310-700" to "Special Event Space",
-        "310-705" to "Drafting Labs",
-        "310-706" to "Specialty Lab",
-        "310-707" to "Student Study Space",
-        "310-708" to "Study Hall",
-        "310-709" to "Sports Hall"
+        "310-210 – Lecture Room",
+        "310-220 – Lecture Room",
+        "303-108 – Seminar Room",
+        "302-305 – Lecture Room"
     )
 
-    Column(modifier = Modifier.fillMaxSize()) {
-
-        // 🔵 TOP HEADER WITH BACK BUTTON (same as all screens)
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
         TopBlueHeader(
             title = "Classroom Informer",
             showBackButton = true,
             onBackClick = onBack
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Available Rooms",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LazyColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
-            items(rooms) { (roomNumber, roomType) ->
-                Row(
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(rooms) { room ->
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp)
-                        .clickable { onRoomClick(roomNumber) },
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .clickable { onRoomClick(room) },
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Text("$roomNumber — $roomType")
-                    androidx.compose.material3.Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = room,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null
+                        )
+                    }
                 }
             }
         }
     }
 }
-

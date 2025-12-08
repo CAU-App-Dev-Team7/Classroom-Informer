@@ -13,41 +13,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.classroominformer.data.RetrofitClient
+import com.example.classroominformer.data.RoomFreeSlotsResponse
 import com.example.classroominformer.ui.components.TopBlueHeader
+import kotlinx.coroutines.launch
 
 @Composable
 fun SearchScreen(
-    onBack: () -> Unit,                         // ✅ BACK HANDLER ADDED
+    onBack: () -> Unit,
+    isReservationMode: Boolean,                    // 👈 added
     onSearchComplete: (List<String>) -> Unit
 ) {
+    // --- user inputs ---
+    var buildingCode by remember { mutableStateOf("") }   // e.g. "310"
+    var roomNumber by remember { mutableStateOf("") }     // e.g. "201"
 
-    val timeSlots = listOf(
-        "Period 0 (08:00 - 08:30)",
-        "Period 1 (09:00 - 09:30)",
-        "Period A (09:30 - 10:00)",
-        "Period 2 (10:00 - 10:30)",
-        "Period B (10:30 - 11:00)",
-        "Period 3 (11:00 - 11:30)",
-        "Period 4 (12:00 - 12:30)",
-        "Period C (12:30 - 13:00)",
-        "Period 5 (13:00 - 13:30)",
-        "Period 6 (14:00 - 14:30)",
-        "Period D (14:30 - 15:00)",
-        "Period 7 (15:00 - 15:30)",
-        "Period E (15:30 - 16:00)",
-        "Period 8 (16:00 - 16:30)",
-        "Period 9 (17:00 - 17:30)",
-        "Period F (17:30 - 18:00)",
-        "Period 10 (18:00 - 18:30)",
-        "Period G (18:30 - 19:00)",
-        "Period 11 (19:00 - 19:30)"
-    )
-
+    // --- slots shown in UI ---
+    var timeSlots by remember { mutableStateOf<List<String>>(emptyList()) }
     val checkedState = remember { mutableStateListOf<Boolean>() }
-    var dropdownOpen by remember { mutableStateOf(false) }
 
-    if (checkedState.isEmpty()) {
-        checkedState.addAll(List(timeSlots.size) { false })
+    var dropdownOpen by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val scope = rememberCoroutineScope()
+
+    // Optional: change subtitle depending on mode
+    val modeHint = if (isReservationMode) {
+        "Select time slots to reserve this room."
+    } else {
+        "Select free time slots to check empty rooms."
     }
 
     Column(
@@ -55,8 +50,6 @@ fun SearchScreen(
             .fillMaxSize()
             .background(Color.White)
     ) {
-
-        // ✅ BACK BUTTON ENABLED
         TopBlueHeader(
             title = "Classroom Informer",
             showBackButton = true,
@@ -65,7 +58,6 @@ fun SearchScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // MAIN CONTENT
         Column(
             modifier = Modifier
                 .padding(horizontal = 16.dp)
@@ -73,13 +65,58 @@ fun SearchScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // 🔍 SEARCH BAR
+            Text(
+                text = modeHint,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            )
+
+            // --- building / room input ---
+            OutlinedTextField(
+                value = buildingCode,
+                onValueChange = { buildingCode = it },
+                label = { Text("Building code (e.g. 310)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = roomNumber,
+                onValueChange = { roomNumber = it },
+                label = { Text("Room number (e.g. 201)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // loading / error message
+            if (isLoading) {
+                Text(
+                    text = "Loading free time slots...",
+                    color = Color.Gray,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+            errorMessage?.let {
+                Text(
+                    text = it,
+                    color = Color.Red,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            // --- clickable "search bar" area ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(55.dp)
                     .background(Color(0xFFEFEFEF), shape = MaterialTheme.shapes.medium)
-                    .clickable { dropdownOpen = true }
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -88,15 +125,15 @@ fun SearchScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-
-                    val selectedText = checkedState
-                        .mapIndexedNotNull { i, checked ->
-                            if (checked) timeSlots[i] else null
+                    val selectedText = timeSlots
+                        .mapIndexedNotNull { i, slot ->
+                            if (checkedState.getOrNull(i) == true) slot else null
                         }
                         .joinToString(", ")
 
                     Text(
-                        text = if (selectedText.isEmpty()) "Select time slots…" else selectedText,
+                        text = if (selectedText.isEmpty())
+                            "Select free time slots…" else selectedText,
                         color = Color.DarkGray,
                         modifier = Modifier.weight(1f)
                     )
@@ -105,10 +142,47 @@ fun SearchScreen(
                         Icons.Default.Search,
                         contentDescription = "Search",
                         modifier = Modifier.clickable {
-                            val selected = timeSlots.filterIndexed { i, _ ->
-                                checkedState[i]
+                            if (buildingCode.isBlank() || roomNumber.isBlank()) {
+                                errorMessage = "Enter building code and room number first."
+                                return@clickable
                             }
-                            onSearchComplete(selected)
+
+                            scope.launch {
+                                isLoading = true
+                                errorMessage = null
+                                try {
+                                    val api = RetrofitClient.infoApi
+                                    val result: List<RoomFreeSlotsResponse> =
+                                        api.getRoomFreeSlots(
+                                            buildingCode = buildingCode.trim(),
+                                            roomNumber = roomNumber.trim()
+                                        )
+
+                                    val first = result.firstOrNull()
+                                    if (first == null) {
+                                        timeSlots = emptyList()
+                                        checkedState.clear()
+                                        errorMessage = "No free slots found."
+                                    } else {
+                                        // flatten { day -> slots } into ["월 09:00 - 10:00", ...]
+                                        val flat = mutableListOf<String>()
+                                        first.free_slots_by_day.forEach { (day, slots) ->
+                                            slots.forEach { slot ->
+                                                flat.add("$day ${slot.start} - ${slot.end}")
+                                            }
+                                        }
+                                        timeSlots = flat
+                                        checkedState.clear()
+                                        checkedState.addAll(List(flat.size) { false })
+                                        dropdownOpen = true
+                                    }
+                                } catch (e: Exception) {
+                                    errorMessage =
+                                        "Failed to load slots: ${e.localizedMessage ?: "Unknown error"}"
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
                         }
                     )
                 }
@@ -116,8 +190,8 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 📌 DROPDOWN LIST
-            if (dropdownOpen) {
+            // --- dropdown list with checkboxes ---
+            if (dropdownOpen && timeSlots.isNotEmpty()) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -137,9 +211,11 @@ fun SearchScreen(
                                 Text(slot)
 
                                 Checkbox(
-                                    checked = checkedState[index],
+                                    checked = checkedState.getOrNull(index) ?: false,
                                     onCheckedChange = { checked ->
-                                        checkedState[index] = checked
+                                        if (index < checkedState.size) {
+                                            checkedState[index] = checked
+                                        }
                                     }
                                 )
                             }
@@ -147,9 +223,23 @@ fun SearchScreen(
                     }
                 }
             }
+
+            // ✅ FINALIZE SELECTION BUTTON
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    val selected = timeSlots.filterIndexed { i, _ ->
+                        checkedState.getOrNull(i) == true
+                    }
+                    onSearchComplete(selected)
+                },
+                enabled = timeSlots.isNotEmpty()
+            ) {
+                Text(
+                    if (isReservationMode) "Reserve selected slots"
+                    else "Use selected slots"
+                )
+            }
         }
     }
 }
-
-
-

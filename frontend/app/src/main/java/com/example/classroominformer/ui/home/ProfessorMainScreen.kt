@@ -57,7 +57,7 @@ fun ProfessorMainScreen(
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 이미 프로젝트에 있는 헤더 컴포저블이라고 가정
+        // 상단 공통 헤더
         MainHeaderArea(showBackButton = false)
 
         // 🔔 ALERT POPUP
@@ -123,27 +123,32 @@ fun ProfessorMainScreen(
                 )
             }
 
-            // Row 2: Favourites - Reservations - Map
+            // Row 2: Favourites - Map  🚫 Reservations 제거
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth(0.85f),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 CircleMenuButton(
                     emoji = "⭐",
                     label = "Favourites",
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 16.dp),
                     onClick = onFavouritesClick
+                )
+                CircleMenuButton(
+                    emoji = "📍",
+                    label = "Map",
+                    modifier = Modifier.weight(1f),
+                    onClick = onMapClick
                 )
                 CircleMenuButton(
                     emoji = "⏱️",
                     label = "Reservations",
                     onClick = onReservationsClick
                 )
-                CircleMenuButton(
-                    emoji = "📍",
-                    label = "Map",
-                    onClick = onMapClick
-                )
+
             }
 
             // Row 3: Notifications - Logout

@@ -2,7 +2,10 @@ package com.example.classroominformer.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,60 +22,41 @@ fun RoomDetailScreen(
             .fillMaxSize()
             .background(Color.White)
     ) {
-
-        // 🔵 Header (with back button)
         TopBlueHeader(
             title = "Classroom Informer",
             showBackButton = true,
             onBackClick = onBack
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // 🟦 Room Name
         Text(
             text = roomId,
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier
+                .padding(horizontal = 24.dp, vertical = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // 🟦 Two grey placeholder boxes (matching professor UI)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .background(Color(0xFFE0E0E0))
-            )
-            Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .background(Color(0xFFE0E0E0))
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // 📝 Room details
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            Text("Room Information:", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text("• Capacity: 60 students")
+        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+            Text("• Capacity: 45 students")
             Text("• Projector: Available")
             Text("• Air conditioning: Yes")
-            Text("• Type: Lecture Room / Lab / Seminar (varies)")
+            Text("• Whiteboard: Yes")
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // No "Reserve" button for students — they only view rooms
-        // So we leave the bottom empty for cleanliness
+        Button(
+            onClick = { /* TODO: hook reservation or favourite */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+        ) {
+            Text("Reserve", color = Color.White)
+        }
     }
 }
