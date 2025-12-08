@@ -5,12 +5,23 @@ import retrofit2.http.Query
 
 interface InfoApi {
 
+    @GET("info/rooms/available")
+    suspend fun getAvailableRooms(
+        @Query("building_code") buildingCode: String,
+        @Query("slots") slots: List<String>
+    ): List<AvailableRoomDto>
+
     @GET("info/room/timetable/free-slots")
-    suspend fun getRoomFreeSlots(
+    suspend fun getFreeSlotsByRoom(
         @Query("building_code") buildingCode: String,
         @Query("room_number") roomNumber: String,
-        // optional: if null, backend will use default 09:00~20:00
-        @Query("start_time") startTime: String? = null,   // "09:00"
-        @Query("end_time") endTime: String? = null        // "20:00"
-    ): List<RoomFreeSlotsResponse>
+        @Query("start_time") startTime: String? = null,
+        @Query("end_time") endTime: String? = null
+    ): List<FreeSlotsResponseDto>
+
+    // NEW: ROOM DETAIL ENDPOINT
+    @GET("info/room/detail")
+    suspend fun getRoomDetail(
+        @Query("room_id") roomId: Long
+    ): RoomDetailDto
 }
