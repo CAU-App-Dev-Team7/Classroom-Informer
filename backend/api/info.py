@@ -281,8 +281,9 @@ async def get_free_slots_by_room(
 # ----------------------------------------
 @router.get("/rooms/available")
 async def get_available_rooms(
-    building_code: str = Query(...),
-    slots: List[str] = Query(...)
+    building_code: str = Query(..., description="건물 코드 (예: 310)"),
+    slots: List[str] = Query(..., description="시간 슬롯 리스트 (예: ['09:00-10:00'])"),
+    room_number: Optional[str] = Query(None, description="강의실 번호 (선택, 예: 515)")
 ):
     """
     slots = ["09:00-10:00", "11:00-12:00"] 형태
@@ -305,13 +306,16 @@ async def get_available_rooms(
 
         building_id = building_data["id"]
 
-        # 2) 건물의 모든 rooms 조회
-        rooms_res = (
-            supabase.table("rooms")
-            .select("id, room_number, type")
-            .eq("building_id", building_id)
-            .execute()
-        )
+        # 2) Rooms 조회 쿼리 구성
+        # 💡 room_number가 있으면 해당 방만, 없으면 건물 전체 방 조회
+        rooms_query = supabase.table("rooms").select("id, room_number, type").eq("building_id", building_id)
+
+        if room_number:
+            # "호" 제거 및 공백 제거 (프론트에서 어떻게 보내든 처리 가능하게)
+            clean_room_number = room_number.replace("호", "").strip()
+            rooms_query = rooms_query.eq("room_number", clean_room_number)
+
+        rooms_res = rooms_query.execute()
 
         room_list = rooms_res.data or []
         if not room_list:
@@ -319,10 +323,11 @@ async def get_available_rooms(
 
         available_rooms = []
 
+        # 3) 각 방별로 시간표 확인 (시간 객체 변환 로직 적용)
         for room in room_list:
             room_id = room["id"]
 
-            # 3) 해당 강의실의 예약·수업 일정 조회
+            # 해당 강의실의 예약·수업 일정 조회
             timetable_res = (
                 supabase.table("timetable_entries")
                 .select("day,start_time,end_time")
@@ -336,44 +341,36 @@ async def get_available_rooms(
             all_free = True
 
             for slot in slots:
-                # 안전하게 문자열 처리
+                # 슬롯 파싱 (HH:MM-HH:MM)
                 parts = slot.strip().split("-")
+                
+                # 형식이 잘못되었거나 요일이 섞여 있으면 실패 처리
                 if len(parts) != 2:
                     all_free = False
                     break
-
-            # 5) 요청 슬롯 시간을 time 객체로 변환
+                
                 try:
-                    # 요청 슬롯은 HH:MM 형식이므로, datetime.strptime을 사용하여 time 객체로 파싱
-                    req_start_time = datetime.strptime(parts[0].strip(), "%H:%M").time()
-                    req_end_time = datetime.strptime(parts[1].strip(), "%H:%M").time()
+                    # 💡 문자열 -> time 객체 변환 (안전한 비교를 위해)
+                    req_start = datetime.strptime(parts[0].strip(), "%H:%M").time()
+                    req_end = datetime.strptime(parts[1].strip(), "%H:%M").time()
                 except ValueError:
-                    # 요청 형식이 잘못되면 건너뜁니다.
-                    all_free = False 
+                    all_free = False
                     break
 
                 for entry in occupied:
-                    # 2. DB 엔트리 시간을 time 객체로 변환 (HH:MM:SS 또는 HH:MM:SS.microseconds 처리)
-                    # Supabase 응답은 문자열이므로, datetime.strptime을 사용하여 처리합니다.
                     try:
-                        # DB 시간 형식이 HH:MM:SS라고 가정
-                        db_start_time = datetime.strptime(entry["start_time"], "%H:%M:%S").time()
-                        db_end_time = datetime.strptime(entry["end_time"], "%H:%M:%S").time()
+                        # DB 시간 -> time 객체 변환
+                        # DB가 HH:MM:SS.microseconds 일 수 있으므로 처리
+                        entry_start_str = entry["start_time"].split(".")[0]
+                        entry_end_str = entry["end_time"].split(".")[0]
+                        
+                        db_start = datetime.strptime(entry_start_str, "%H:%M:%S").time()
+                        db_end = datetime.strptime(entry_end_str, "%H:%M:%S").time()
                     except ValueError:
-                        # 만약 DB 형식이 HH:MM:SS.microseconds라면 이 부분에서 오류가 나므로, 
-                        # .split('.')을 사용하거나 더 유연한 파싱 로직이 필요합니다.
-                        # (일단은 HH:MM:SS를 고수합니다.)
-                        try:
-                            db_start_time = datetime.strptime(entry["start_time"].split(".")[0], "%H:%M:%S").time()
-                            db_end_time = datetime.strptime(entry["end_time"].split(".")[0], "%H:%M:%S").time()
-                        except ValueError:
-                            # 파싱 불가 시 해당 엔트리 무시
-                            continue 
+                        continue # 포맷 에러 시 해당 엔트리 무시 (안전장치)
 
-
-                    # 3. time 객체를 사용하여 겹침 여부 확인 (문자열 비교보다 안전함)
-                    # [겹치는 경우] (entry_end <= req_start_time 또는 entry_start_time >= req_end_time) 가 아닌 경우
-                    if not (db_end_time <= req_start_time or db_start_time >= req_end_time):
+                    # 겹치는 경우 판별: (StartA < EndB) and (EndA > StartB)
+                    if (db_start < req_end) and (db_end > req_start):
                         all_free = False
                         break
 
