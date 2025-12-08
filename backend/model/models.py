@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import time, datetime
 
 # --- Buildings 모델 ---
@@ -34,6 +34,14 @@ class TimetableEntryResponse(BaseModel):
     source: Optional[str] = None
     created_at: Optional[datetime] = None
 
+class FreeSlotDto(BaseModel):
+    start: str
+    end: str
+
+class FreeSlotsResponseDto(BaseModel):
+    building_code: str
+    room_number: str
+    free_slots_by_day: Dict[str, List[FreeSlotDto]]
 
 # --- 즐겨찾기 관련 모델 ---
 class FavoriteToggleRequest(BaseModel):

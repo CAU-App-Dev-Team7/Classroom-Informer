@@ -5,7 +5,8 @@ from datetime import time, datetime
 from model.models import (
     BuildingResponse,
     RoomResponse,
-    TimetableEntryResponse
+    TimetableEntryResponse,
+    FreeSlotsResponseDto
 )
 
 router = APIRouter(
@@ -252,14 +253,11 @@ async def get_free_slots_by_room(
             free_slots_by_day[day] = free_slots
 
         # 🔥 프론트 기대 형태로 변환
-        result = []
-        for day, slots in free_slots_by_day.items():
-            result.append({
-                "day": day,
-                "free_slots": slots
-            })
-
-        return result
+        return [FreeSlotsResponseDto(
+        building_code=building_code,
+        room_number=room_number,
+        free_slots_by_day=free_slots_by_day
+    )]
 
     except HTTPException:
         raise
