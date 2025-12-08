@@ -308,7 +308,7 @@ async def get_available_rooms(
 
         # 2) Rooms 조회 쿼리 구성
         # 💡 room_number가 있으면 해당 방만, 없으면 건물 전체 방 조회
-        rooms_query = supabase.table("rooms").select("id, room_number, type").eq("building_id", building_id)
+        rooms_query = supabase.table("rooms").select("id, room_number").eq("building_id", building_id)
 
         if room_number:
             # "호" 제거 및 공백 제거 (프론트에서 어떻게 보내든 처리 가능하게)
@@ -381,8 +381,7 @@ async def get_available_rooms(
                 available_rooms.append({
                     "room_id": room["id"], # room_id는 int 타입이므로 room["id"]로 수정 (AvailableRoomDto의 room_id는 Int)
                     "building_code": building_code,
-                    "room_number": room["room_number"],
-                    "type": room.get("type")
+                    "room_number": room["room_number"]
                 })
 
         return available_rooms
