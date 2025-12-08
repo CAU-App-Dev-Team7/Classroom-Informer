@@ -258,9 +258,8 @@ async def get_free_slots_by_room(
                     "end": end_time.strftime("%H:%M"),
                 })
 
-            free_slots_by_day[day] = [
-    FreeSlotDto(start=current_start.strftime("%H:%M"), end=entry_start.strftime("%H:%M"))
-]
+            free_slots_by_day[day] = free_slots
+
         # 🔥 프론트 기대 형태로 변환
         result = [
             FreeSlotsResponseDto(
