@@ -174,16 +174,15 @@ async def get_free_slots_by_room(
     start_time: time = Query(DEFAULT_START_TIME, description="조회 시작 시간"),
     end_time: time = Query(DEFAULT_END_TIME, description="조회 종료 시간")
 ):
-    """
-    특정 강의실의 전체 시간표를 기준으로 요일별 빈 시간대를 반환합니다.
-    """
     try:
         # 1. building_code -> building_id
-        building_res = supabase.table("buildings") \
-            .select("id") \
-            .eq("code", building_code) \
-            .maybe_single() \
+        building_res = (
+            supabase.table("buildings")
+            .select("id")
+            .eq("code", building_code)
+            .maybe_single()
             .execute()
+        )
 
         if not getattr(building_res, "data", None):
             raise HTTPException(status_code=404, detail=f"Building code '{building_code}' not found")
@@ -201,12 +200,11 @@ async def get_free_slots_by_room(
         )
 
         if not getattr(room_res, "data", None):
-            raise HTTPException(status_code=404,
-                                detail=f"Room '{room_number}' in {building_code} not found")
+            raise HTTPException(status_code=404, detail=f"Room '{room_number}' in {building_code} not found")
 
         room_id = room_res.data["id"]
 
-        # 3. timetable_entries: 0 rows여도 에러 없이 [] 반환
+        # 3. timetable entries (0 rows allowed)
         timetable_res = (
             supabase.table("timetable_entries")
             .select("day,start_time,end_time")
@@ -218,16 +216,14 @@ async def get_free_slots_by_room(
 
         occupied_entries = timetable_res.data or []
 
-        # 4. 요일 목록
         days = ["월", "화", "수", "목", "금"]
 
+        # free slots per day
         free_slots_by_day = {}
 
         for day in days:
-            # 해당 요일의 수업만 필터링
             day_entries = [e for e in occupied_entries if e["day"] == day]
 
-            # 시작 기준 시간 세팅
             current_start = start_time
             free_slots = []
 
@@ -235,22 +231,18 @@ async def get_free_slots_by_room(
                 entry_start = datetime.strptime(entry["start_time"], "%H:%M:%S").time()
                 entry_end = datetime.strptime(entry["end_time"], "%H:%M:%S").time()
 
-                # 수업이 이미 현재 시간 이전이면 스킵
                 if entry_end <= current_start:
                     continue
 
-                # 수업이 현재 시작 시간 이후라면 빈 시간 존재
                 if entry_start > current_start:
                     free_slots.append({
                         "start": current_start.strftime("%H:%M"),
                         "end": entry_start.strftime("%H:%M"),
                     })
 
-                # 다음 탐색 시작 시간 업데이트
                 if entry_end > current_start:
                     current_start = entry_end
 
-            # 마지막 수업 이후 end_time까지 free
             if current_start < end_time:
                 free_slots.append({
                     "start": current_start.strftime("%H:%M"),
@@ -259,18 +251,103 @@ async def get_free_slots_by_room(
 
             free_slots_by_day[day] = free_slots
 
-        # 최종 응답
-        return [
-            {
-                "building_code": building_code,
-                "room_number": room_number,
-                "free_slots_by_day": free_slots_by_day
-            }
-        ]
+        # 🔥 프론트 기대 형태로 변환
+        result = []
+        for day, slots in free_slots_by_day.items():
+            result.append({
+                "day": day,
+                "free_slots": slots
+            })
 
-    except HTTPException as e:
-        raise e
+        return result
+
+    except HTTPException:
+        raise
 
     except Exception as e:
-        # 디버깅 편하게 DB 에러 메시지 그대로 출력
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# ----------------------------------------
+# GET /rooms/available
+# ----------------------------------------
+@router.get("/rooms/available")
+async def get_available_rooms(
+    building_code: str = Query(...),
+    slots: List[str] = Query(...)
+):
+    """
+    slots = ["09:00-10:00", "11:00-12:00"] 형태
+    해당 건물에서 모든 슬롯이 비어있는 강의실 리스트 반환
+    """
+    try:
+        # 1) building_code → building_id
+        building_res = (
+            supabase.table("buildings")
+            .select("id")
+            .eq("code", building_code)
+            .maybe_single()
+            .execute()
+        )
+
+        building_id = getattr(building_res, "data", None)
+        if not building_id:
+            return []
+
+        building_id = building_id["id"]
+
+        # 2) 건물의 모든 rooms 조회
+        rooms_res = (
+            supabase.table("rooms")
+            .select("id, room_number, type")
+            .eq("building_id", building_id)
+            .execute()
+        )
+
+        room_list = rooms_res.data or []
+        if not room_list:
+            return []
+
+        available_rooms = []
+
+        for room in room_list:
+            room_id = room["id"]
+
+            # 3) 해당 강의실의 예약·수업 일정 조회
+            timetable = (
+                supabase.table("timetable_entries")
+                .select("day,start_time,end_time")
+                .eq("room_id", room_id)
+                .execute()
+            )
+
+            occupied = timetable.data or []
+
+            # 4) 모든 요청 슬롯이 비어 있는지 확인
+            all_free = True
+
+            for slot in slots:
+                s, e = slot.split("-")
+                slot_start = s + ":00"
+                slot_end = e + ":00"
+
+                # 충돌 여부 확인
+                for entry in occupied:
+                    if not (entry["end_time"] <= slot_start or entry["start_time"] >= slot_end):
+                        all_free = False
+                        break
+
+                if not all_free:
+                    break
+
+            if all_free:
+                available_rooms.append({
+                    "room_id": room_id,
+                    "building_code": building_code,
+                    "room_number": room["room_number"],
+                    "type": room["type"]
+                })
+
+        return available_rooms
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB error: {str(e)}")
