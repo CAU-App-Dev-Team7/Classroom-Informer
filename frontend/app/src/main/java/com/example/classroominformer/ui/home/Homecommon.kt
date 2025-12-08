@@ -2,6 +2,7 @@ package com.example.classroominformer.ui.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -18,16 +19,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.classroominformer.R
-import com.example.classroominformer.ui.components.TopBlueHeader
+import com.example.classroominformer.ui.components.TopBlueHeader   // 👈 important package
 
 @Composable
 fun CircleMenuButton(
     emoji: String,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier
+            .clickable { onClick() },          // clickable
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -52,6 +55,7 @@ fun CircleMenuButton(
         )
     }
 }
+
 @Composable
 fun MainHeaderArea(
     showBackButton: Boolean = false,

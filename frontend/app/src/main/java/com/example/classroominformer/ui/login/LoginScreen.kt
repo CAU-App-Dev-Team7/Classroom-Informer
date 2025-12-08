@@ -4,18 +4,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,12 +16,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.classroominformer.R
 import com.example.classroominformer.ui.components.TopBlueHeader
+import com.example.classroominformer.ui.home.NotificationsScreen
+import com.example.classroominformer.ui.login.UserRole
+
+
+// Simple role enum – backend can also return this later
+enum class UserRole {
+    Professor,
+    Student
+}
 
 @Composable
-fun LoginScreen(onLoginClick: () -> Unit = {}) {
-
+fun LoginScreen(
+    onLogin: (email: String, password: String, role: UserRole) -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var selectedRole by remember { mutableStateOf(UserRole.Professor) }
 
     Column(
         modifier = Modifier
@@ -40,13 +41,12 @@ fun LoginScreen(onLoginClick: () -> Unit = {}) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 1. Blue header
-        // 1. Blue header
         TopBlueHeader(title = "Classroom Informer")
 
-// Add bigger space under header
+        // Space under header
         Spacer(modifier = Modifier.height(40.dp))
 
-// 2. Mascot
+        // 2. Mascot row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -57,32 +57,53 @@ fun LoginScreen(onLoginClick: () -> Unit = {}) {
                 painter = painterResource(id = R.drawable.mascot),
                 contentDescription = null,
                 modifier = Modifier
-                    .height(180.dp)   // slightly bigger mascot (optional)
+                    .height(180.dp)
                     .width(180.dp),
                 contentScale = ContentScale.Fit
             )
         }
 
-// Add extra spacing before card
         Spacer(modifier = Modifier.height(24.dp))
 
-
-        // 3. White card
+        // 3. Card with fields + login button
         Card(
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(3.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
+            modifier = Modifier.fillMaxWidth(0.85f)
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                // Role selector (Professor / Student)
+                Text(
+                    text = "Login as",
+                    style = MaterialTheme.typography.labelMedium
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilterChip(
+                        selected = selectedRole == UserRole.Professor,
+                        onClick = { selectedRole = UserRole.Professor },
+                        label = { Text("Professor") }
+                    )
+                    FilterChip(
+                        selected = selectedRole == UserRole.Student,
+                        onClick = { selectedRole = UserRole.Student },
+                        label = { Text("Student") }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Value") },
+                    label = { Text("Email or ID") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -96,8 +117,12 @@ fun LoginScreen(onLoginClick: () -> Unit = {}) {
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Button(
-                    onClick = { onLoginClick() },
+                    onClick = {
+                        onLogin(email.trim(), password, selectedRole)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),

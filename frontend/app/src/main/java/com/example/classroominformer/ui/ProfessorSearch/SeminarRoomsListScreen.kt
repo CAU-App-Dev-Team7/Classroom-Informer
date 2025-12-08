@@ -10,7 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.classroominformer.ui.common.components.TopBlueHeader
+import com.example.classroominformer.ui.components.TopBlueHeader
 
 @Composable
 fun SeminarRoomsListScreen(

@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.classroominformer.ui.common.components.TopBlueHeader
+import com.example.classroominformer.ui.components.TopBlueHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
