@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timedelta, timezone
 import pytz
 from typing import List, Dict, Any
-from ..core.config import supabase
-from ..core.dependencies import get_current_user_id
-from ..model.models import NotificationCheckRequest
+from core.config import supabase
+from core.dependencies import get_current_user_id
+from model.models import NotificationCheckRequest
 
 router = APIRouter(
     prefix="/notifications",
