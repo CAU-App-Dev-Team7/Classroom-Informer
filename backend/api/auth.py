@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
-from ..core.config import supabase
-from ..model.models import UserSignupSchema, UserLoginSchema, TokenResponse
+from core.config import supabase
+from model.models import UserSignupSchema, UserLoginSchema, TokenResponse
 
 router = APIRouter(
     prefix="/auth",
