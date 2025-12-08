@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api import auth, favorites, notifications
+from api import auth, favorites, notifications, student_timetable
 
 app = FastAPI(
     title="Classroom Informer API",
@@ -11,6 +11,8 @@ app = FastAPI(
 app.include_router(auth.router)           # /auth/signup, /auth/login
 app.include_router(favorites.router)      # /favorites (Protected)
 app.include_router(notifications.router)  # /notifications (Protected)
+app.include_router(student_timetable.router) #/timetable (Protected)
+
 
 @app.get("/")
 def root():
