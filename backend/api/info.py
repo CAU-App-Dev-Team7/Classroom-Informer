@@ -174,7 +174,7 @@ async def get_timetable_by_room(
 # ----------------------------------------
 # GET /info/room/timetable/free-slots
 # ----------------------------------------
-@router.get("/room/timetable/free-slots", response_model=List[Dict])
+@router.get("/room/timetable/free-slots", response_model=List[FreeSlotsResponseDto])
 async def get_free_slots_by_room(
     building_code: str = Query(..., description="조회할 건물 코드"),
     room_number: str = Query(..., description="조회할 강의실 번호"),
