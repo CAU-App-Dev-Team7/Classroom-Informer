@@ -299,11 +299,11 @@ async def get_available_rooms(
             .execute()
         )
 
-        building_id = getattr(building_res, "data", None)
-        if not building_id:
+        building_data = getattr(building_res, "data", None)
+        if not building_data:
             return []
 
-        building_id = building_id["id"]
+        building_id = building_data["id"]
 
         # 2) 건물의 모든 rooms 조회
         rooms_res = (
@@ -323,26 +323,34 @@ async def get_available_rooms(
             room_id = room["id"]
 
             # 3) 해당 강의실의 예약·수업 일정 조회
-            timetable = (
+            timetable_res = (
                 supabase.table("timetable_entries")
                 .select("day,start_time,end_time")
                 .eq("room_id", room_id)
                 .execute()
             )
 
-            occupied = timetable.data or []
+            occupied = timetable_res.data or []
 
             # 4) 모든 요청 슬롯이 비어 있는지 확인
             all_free = True
 
             for slot in slots:
-                s, e = slot.split("-")
-                slot_start = s + ":00"
-                slot_end = e + ":00"
+                # 안전하게 문자열 처리
+                parts = slot.strip().split("-")
+                if len(parts) != 2:
+                    all_free = False
+                    break
 
-                # 충돌 여부 확인
+                slot_start = parts[0].strip() + ":00"
+                slot_end = parts[1].strip() + ":00"
+
                 for entry in occupied:
-                    if not (entry["end_time"] <= slot_start or entry["start_time"] >= slot_end):
+                    entry_start = entry["start_time"]
+                    entry_end = entry["end_time"]
+
+                    # 겹치는 경우
+                    if not (entry_end <= slot_start or entry_start >= slot_end):
                         all_free = False
                         break
 
@@ -354,7 +362,7 @@ async def get_available_rooms(
                     "room_id": room_id,
                     "building_code": building_code,
                     "room_number": room["room_number"],
-                    "type": room["type"]
+                    "type": room.get("type")
                 })
 
         return available_rooms
