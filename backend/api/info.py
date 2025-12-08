@@ -126,6 +126,36 @@ async def get_room_by_identifier(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
 # ----------------------------------------
+# GET /info/room/{room_id} (ID로 상세 조회)
+# ----------------------------------------
+@router.get("/room/{room_id}", response_model=RoomResponse)
+async def get_room_by_id(
+    room_id: int
+):
+    """
+    Room ID(Primary Key)를 사용하여 강의실 상세 정보를 조회합니다.
+    """
+    query = "*, building:buildings(id, code, name)"
+
+    try:
+        # room_id를 기준으로 조회
+        response = supabase.table("rooms")\
+            .select(query)\
+            .eq("id", room_id)\
+            .single()\
+            .execute()
+        
+        if not response.data:
+             raise HTTPException(status_code=404, detail=f"Room ID {room_id} not found")
+             
+        return response.data
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+# ----------------------------------------
 # GET /info/room/timetable
 # ----------------------------------------
 @router.get("/room/timetable", response_model=List[TimetableEntryResponse])
