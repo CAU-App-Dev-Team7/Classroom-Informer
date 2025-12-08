@@ -6,6 +6,7 @@ from model.models import (
     BuildingResponse,
     RoomResponse,
     TimetableEntryResponse,
+    FreeSlotDto,
     FreeSlotsResponseDto
 )
 
@@ -250,14 +251,18 @@ async def get_free_slots_by_room(
                     "end": end_time.strftime("%H:%M"),
                 })
 
-            free_slots_by_day[day] = free_slots
-
+            free_slots_by_day[day] = [
+    FreeSlotDto(start=current_start.strftime("%H:%M"), end=entry_start.strftime("%H:%M"))
+]
         # 🔥 프론트 기대 형태로 변환
-        return [FreeSlotsResponseDto(
-        building_code=building_code,
-        room_number=room_number,
-        free_slots_by_day=free_slots_by_day
-    )]
+        result = [
+            FreeSlotsResponseDto(
+                building_code=building_code,
+                room_number=room_number,
+                free_slots_by_day=free_slots_by_day
+                )]
+
+        return result
 
     except HTTPException:
         raise
