@@ -29,41 +29,47 @@ fun ClassroomInformerApp() {
                 startDestination = "login"
             ) {
 
-                // -------- LOGIN --------
+                // ------------------------------------------------------
+                // LOGIN
+                // ------------------------------------------------------
                 composable("login") {
                     LoginScreen { email, _password, role ->
 
-                        val userName = if (email.isNotBlank()) {
-                            email.substringBefore("@")
-                        } else "guest"
+                        val userName = email.substringBefore("@")
 
-                        when (role) {
-                            UserRole.Professor -> {
-                                navController.navigate("professorMain/$userName") {
-                                    popUpTo("login") { inclusive = true }
-                                }
-                            }
+                        val target = when (role) {
+                            UserRole.Professor -> "professorMain/$userName"
+                            UserRole.Student -> "studentMain/$userName"
+                        }
 
-                            UserRole.Student -> {
-                                navController.navigate("studentMain/$userName") {
-                                    popUpTo("login") { inclusive = true }
-                                }
-                            }
+                        navController.navigate(target) {
+                            popUpTo("login") { inclusive = true }
                         }
                     }
                 }
 
-                // -------- STUDENT MAIN --------
-                composable("studentMain/{userName}") { backStackEntry ->
-                    val userName = backStackEntry.arguments?.getString("userName") ?: "guest"
+                // ------------------------------------------------------
+                // STUDENT MAIN
+                // ------------------------------------------------------
+                composable("studentMain/{userName}") { entry ->
+                    val userName = entry.arguments?.getString("userName") ?: "guest"
 
                     StudentMainScreen(
                         userName = userName,
-                        onSearchClick = { navController.navigate("search") },
-                        onTimetableClick = { navController.navigate("timetable_student/$userName") },
-                        onFavouritesClick = { navController.navigate("favourites/$userName") },
+                        onSearchClick = {
+                            navController.navigate("search/normal/$userName")
+                        },
+                        onTimetableClick = {
+                            // Default room (change later)
+                            navController.navigate("timetable/310/617")
+                        },
+                        onFavouritesClick = {
+                            navController.navigate("favourites/$userName")
+                        },
                         onMapClick = { navController.navigate("map") },
-                        onNotificationsClick = { navController.navigate("notifications/$userName") },
+                        onNotificationsClick = {
+                            navController.navigate("notifications/$userName")
+                        },
                         onLogoutClick = {
                             navController.navigate("login") {
                                 popUpTo("login") { inclusive = true }
@@ -72,18 +78,30 @@ fun ClassroomInformerApp() {
                     )
                 }
 
-                // -------- PROFESSOR MAIN --------
-                composable("professorMain/{userName}") { backStackEntry ->
-                    val userName = backStackEntry.arguments?.getString("userName") ?: "guest"
+                // ------------------------------------------------------
+                // PROFESSOR MAIN
+                // ------------------------------------------------------
+                composable("professorMain/{userName}") { entry ->
+                    val userName = entry.arguments?.getString("userName") ?: "guest"
 
                     ProfessorMainScreen(
                         userName = userName,
-                        onSearchClick = { navController.navigate("search") },
-                        onTimetableClick = { navController.navigate("timetable_professor/$userName") },
-                        onFavouritesClick = { navController.navigate("favourites/$userName") },
-                        onReservationsClick = { navController.navigate("reservationSearch") },
+                        onSearchClick = {
+                            navController.navigate("search/normal/$userName")
+                        },
+                        onTimetableClick = {
+                            navController.navigate("timetable/310/617")
+                        },
+                        onFavouritesClick = {
+                            navController.navigate("favourites/$userName")
+                        },
+                        onReservationsClick = {
+                            navController.navigate("search/reservation/$userName")
+                        },
                         onMapClick = { navController.navigate("map") },
-                        onNotificationsClick = { navController.navigate("notifications/$userName") },
+                        onNotificationsClick = {
+                            navController.navigate("notifications/$userName")
+                        },
                         onLogoutClick = {
                             navController.navigate("login") {
                                 popUpTo("login") { inclusive = true }
@@ -92,114 +110,68 @@ fun ClassroomInformerApp() {
                     )
                 }
 
-                // -------- MAP --------
+                // ------------------------------------------------------
+                // MAP
+                // ------------------------------------------------------
                 composable("map") {
                     MapScreen(
                         onBack = { navController.popBackStack() }
                     )
                 }
 
-                // ✅✅✅ STUDENT SEARCH (FIXED)
-                composable("search") {
+                // ------------------------------------------------------
+                // UNIFIED SEARCH SCREEN
+                // mode = normal / reservation
+                // ------------------------------------------------------
+                composable("search/{mode}/{userName}") { entry ->
+
+                    val mode = entry.arguments?.getString("mode") ?: "normal"
+                    val userName = entry.arguments?.getString("userName") ?: "guest"
+
+                    val isReservation = mode == "reservation"
+
                     SearchScreen(
                         onBack = { navController.popBackStack() },
-                        onSearchComplete = { _selectedSlots ->
-                            navController.navigate("roomsList")
+                        isReservationMode = isReservation,
+                        onRoomSelected = { roomId: Int ->
+                            navController.navigate("roomDetail/$roomId")
                         }
                     )
                 }
 
-                // -------- ROOM LIST --------
-                composable("roomsList") {
-                    RoomsListScreen(
-                        onBack = { navController.popBackStack() },
-                        onRoomClick = { roomId ->
-                            navController.currentBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("roomId", roomId)
+                // ------------------------------------------------------
+                composable("roomDetail/{roomId}") { entry ->
+                val roomId = entry.arguments?.getString("roomId")!!.toLong()
 
-                            navController.navigate("roomDetail")
-                        }
-                    )
-                }
+                RoomDetailScreen(
+                    roomId = roomId,
+                    onBack = { navController.popBackStack() },
+                    onOpenTimetable = { building, room ->
+                        navController.navigate("timetable/$building/$room")
+                    }
+                )
+            }
 
-                // -------- ROOM DETAIL --------
-                composable("roomDetail") {
-                    val roomId = navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.get<String>("roomId") ?: "Room"
 
-                    RoomDetailScreen(
-                        roomId = roomId,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // ✅✅✅ PROFESSOR RESERVATION SEARCH (FIXED)
-                composable("reservationSearch") {
-                    ReservationSearchScreen(
-                        onBack = { navController.popBackStack() },
-                        onSearchDone = {
-                            navController.navigate("seminarRooms")
-                        }
-                    )
-                }
-
-                // -------- SEMINAR ROOMS --------
-                composable("seminarRooms") {
-                    SeminarRoomsListScreen(
-                        onBack = { navController.popBackStack() },
-                        onRoomClick = { roomId ->
-                            navController.currentBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("roomId", roomId)
-
-                            navController.navigate("seminarRoomDetail")
-                        }
-                    )
-                }
-
-                // -------- SEMINAR ROOM DETAIL --------
-                composable("seminarRoomDetail") {
-                    val roomId = navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.get<String>("roomId") ?: "Seminar Room"
-
-                    SeminarRoomDetailScreen(
-                        roomId = roomId,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // -------- STUDENT TIMETABLE --------
-                composable("timetable_student/{userName}") { backStackEntry ->
-                    val userName = backStackEntry.arguments?.getString("userName") ?: "guest"
+                // ------------------------------------------------------
+                // TIMETABLE SCREEN
+                // ------------------------------------------------------
+                composable("timetable/{building}/{room}") { entry ->
+                    val building = entry.arguments?.getString("building")!!
+                    val room = entry.arguments?.getString("room")!!
 
                     TimetableScreen(
-                        userName = userName,
-                        onBackClick = { navController.popBackStack() },
-                        onEmptySlotClick = {
-                            navController.navigate("search")
-                        }
+                        buildingCode = building,
+                        roomNumber = room,
+                        onBackClick = { navController.popBackStack() }
                     )
                 }
 
-                // -------- PROFESSOR TIMETABLE --------
-                composable("timetable_professor/{userName}") { backStackEntry ->
-                    val userName = backStackEntry.arguments?.getString("userName") ?: "guest"
-
-                    TimetableScreen(
-                        userName = userName,
-                        onBackClick = { navController.popBackStack() },
-                        onEmptySlotClick = {
-                            navController.navigate("reservationSearch")
-                        }
-                    )
-                }
-
-                // -------- FAVOURITES --------
-                composable("favourites/{userName}") { backStackEntry ->
-                    val userName = backStackEntry.arguments?.getString("userName") ?: "guest"
+                // ------------------------------------------------------
+                // FAVOURITES
+                // ------------------------------------------------------
+                composable("favourites/{userName}") { entry ->
+                    val userName = entry.arguments?.getString("userName") ?: "guest"
 
                     FavouritesScreen(
                         userName = userName,
@@ -207,31 +179,31 @@ fun ClassroomInformerApp() {
                     )
                 }
 
-                // -------- NOTIFICATIONS --------
-                composable("notifications/{userName}") { backStackEntry ->
-                    val userName = backStackEntry.arguments?.getString("userName") ?: "guest"
+                // ------------------------------------------------------
+                // NOTIFICATIONS
+                // ------------------------------------------------------
+                composable("notifications/{userName}") { entry ->
+                    val userName = entry.arguments?.getString("userName") ?: "guest"
 
                     NotificationsScreen(
                         userName = userName,
                         onBackClick = { navController.popBackStack() },
-                        onNotificationClick = { notification ->
-                            navController.navigate(
-                                "notificationDetail/$userName/${notification.id}"
-                            )
+                        onNotificationClick = { noti ->
+                            navController.navigate("notificationDetail/$userName/${noti.id}")
                         }
                     )
                 }
 
-                // -------- NOTIFICATION DETAIL --------
-                composable("notificationDetail/{userName}/{notificationId}") { backStackEntry ->
-                    val userName = backStackEntry.arguments?.getString("userName") ?: "guest"
-                    val notificationId = backStackEntry.arguments
-                        ?.getString("notificationId")
-                        ?.toLongOrNull() ?: -1L
+                // ------------------------------------------------------
+                // NOTIFICATION DETAIL
+                // ------------------------------------------------------
+                composable("notificationDetail/{userName}/{notificationId}") { entry ->
+                    val userName = entry.arguments?.getString("userName") ?: "guest"
+                    val notiId = entry.arguments?.getString("notificationId")!!.toLong()
 
                     NotificationDetailScreen(
                         userName = userName,
-                        notificationId = notificationId,
+                        notificationId = notiId,
                         onBackClick = { navController.popBackStack() }
                     )
                 }
@@ -239,5 +211,3 @@ fun ClassroomInformerApp() {
         }
     }
 }
-
-

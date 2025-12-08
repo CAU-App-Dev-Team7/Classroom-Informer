@@ -1,0 +1,42 @@
+.
+├── com
+│   └── example
+│       └── classroominformer
+│           ├── ClassroomInformerApp.kt
+│           ├── MainActivity.kt
+│           ├── data
+│           │   ├── AuthApi.kt
+│           │   ├── RetrofitClient.kt
+│           │   └── SupabaseClient.kt
+│           └── ui
+│               ├── MapScreen
+│               │   └── MapScreen.kt
+│               ├── ProfessorSearch
+│               │   ├── ReservationSearchScreen.kt
+│               │   ├── SeminarRoomDetailScreen.kt
+│               │   └── SeminarRoomsListScreen.kt
+│               ├── StudentSearch
+│               │   ├── RoomsDetailsScreen.kt
+│               │   ├── RoomsListScreen.kt
+│               │   └── SearchScreen.kt
+│               ├── components
+│               │   └── TopBlueHeader.kt
+│               ├── home
+│               │   ├── FavouritesScreen.kt
+│               │   ├── Homecommon.kt
+│               │   ├── NotificationHelper.kt
+│               │   ├── NotificationItem.kt
+│               │   ├── NotificationScreen.kt
+│               │   ├── ProfessorMainScreen.kt
+│               │   ├── SharedPrefsNotificationRepository.kt
+│               │   ├── StudentMainscreen.kt
+│               │   └── TimetableScreen.kt
+│               ├── login
+│               │   └── LoginScreen.kt
+│               └── theme
+│                   ├── Color.kt
+│                   ├── Theme.kt
+│                   └── Type.kt
+└── st.txt
+
+13 directories, 27 files

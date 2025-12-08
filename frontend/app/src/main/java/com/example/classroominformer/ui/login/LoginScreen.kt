@@ -16,9 +16,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.classroominformer.R
 import com.example.classroominformer.ui.components.TopBlueHeader
-import com.example.classroominformer.ui.home.NotificationsScreen
-import com.example.classroominformer.ui.login.UserRole
-
+import com.example.classroominformer.data.RetrofitClient
+import com.example.classroominformer.data.LoginRequest
+import com.example.classroominformer.data.SignupRequest
+import com.example.classroominformer.data.AuthManager
+import kotlinx.coroutines.launch
 
 // Simple role enum – backend can also return this later
 enum class UserRole {
@@ -28,11 +30,17 @@ enum class UserRole {
 
 @Composable
 fun LoginScreen(
+    // ClassroomInformerApp에서 사용 중인 기존 시그니처
     onLogin: (email: String, password: String, role: UserRole) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(UserRole.Professor) }
+
+    var message by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -43,7 +51,6 @@ fun LoginScreen(
         // 1. Blue header
         TopBlueHeader(title = "Classroom Informer")
 
-        // Space under header
         Spacer(modifier = Modifier.height(40.dp))
 
         // 2. Mascot row
@@ -65,7 +72,7 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 3. Card with fields + login button
+        // 3. Card with fields + buttons
         Card(
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(3.dp),
@@ -103,7 +110,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email or ID") },
+                    label = { Text("Email") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -119,19 +126,92 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // 🔐 LOGIN: /auth/login 호출 후 토큰 저장 + 네비게이션 콜백
                 Button(
                     onClick = {
-                        onLogin(email.trim(), password, selectedRole)
+                        scope.launch {
+                            isLoading = true
+                            message = null
+                            try {
+                                val api = RetrofitClient.authApi
+
+                                val res = api.login(
+                                    LoginRequest(
+                                        email = email.trim(),
+                                        password = password
+                                    )
+                                )
+
+                                // 🔥 FastAPI에서 받은 토큰/유저 정보 저장
+                                AuthManager.saveAuth(
+                                    access = res.access_token,
+                                    refresh = res.refresh_token,
+                                    userIdValue = res.user_id
+                                )
+
+                                // 기존 네비게이션 흐름 유지
+                                onLogin(email.trim(), password, selectedRole)
+
+                                message = "로그인 성공"
+                            } catch (e: Exception) {
+                                message = "로그인 실패: ${e.localizedMessage ?: "알 수 없는 오류"}"
+                            } finally {
+                                isLoading = false
+                            }
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
+                    enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF3D8BFF)
                     )
                 ) {
-                    Text("Login", fontSize = 17.sp)
+                    Text(
+                        text = if (isLoading) "Loading..." else "Login",
+                        fontSize = 17.sp
+                    )
+                }
+
+                // ✏️ SIGN UP: /auth/signup 호출
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            isLoading = true
+                            message = null
+                            try {
+                                val api = RetrofitClient.authApi
+                                val res = api.signup(
+                                    SignupRequest(
+                                        email = email.trim(),
+                                        password = password,
+                                        name = null // 나중에 이름 필드 추가하면 연결
+                                    )
+                                )
+                                message = "회원가입 성공: ${res.message}"
+                            } catch (e: Exception) {
+                                message = "회원가입 실패: ${e.localizedMessage ?: "알 수 없는 오류"}"
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = !isLoading && email.isNotBlank() && password.isNotBlank()
+                ) {
+                    Text("Sign up")
+                }
+
+                // 메시지 출력
+                message?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = it,
+                        color = Color.Red,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }
