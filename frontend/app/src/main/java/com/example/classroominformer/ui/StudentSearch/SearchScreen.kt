@@ -17,8 +17,10 @@ import com.example.classroominformer.ui.components.TopBlueHeader
 
 @Composable
 fun SearchScreen(
+    onBack: () -> Unit,                         // ✅ BACK HANDLER ADDED
     onSearchComplete: (List<String>) -> Unit
 ) {
+
     val timeSlots = listOf(
         "Period 0 (08:00 - 08:30)",
         "Period 1 (09:00 - 09:30)",
@@ -54,10 +56,11 @@ fun SearchScreen(
             .background(Color.White)
     ) {
 
-        // ⭐ NEW SHARED HEADER
+        // ✅ BACK BUTTON ENABLED
         TopBlueHeader(
             title = "Classroom Informer",
-            showBackButton = false    // This is the FIRST screen, no back button
+            showBackButton = true,
+            onBackClick = onBack
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -70,7 +73,7 @@ fun SearchScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // 🔍 SEARCH BAR (unchanged except layout cleanup)
+            // 🔍 SEARCH BAR
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -85,8 +88,11 @@ fun SearchScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
+
                     val selectedText = checkedState
-                        .mapIndexedNotNull { i, checked -> if (checked) timeSlots[i] else null }
+                        .mapIndexedNotNull { i, checked ->
+                            if (checked) timeSlots[i] else null
+                        }
                         .joinToString(", ")
 
                     Text(
@@ -99,7 +105,9 @@ fun SearchScreen(
                         Icons.Default.Search,
                         contentDescription = "Search",
                         modifier = Modifier.clickable {
-                            val selected = timeSlots.filterIndexed { i, _ -> checkedState[i] }
+                            val selected = timeSlots.filterIndexed { i, _ ->
+                                checkedState[i]
+                            }
                             onSearchComplete(selected)
                         }
                     )
@@ -127,6 +135,7 @@ fun SearchScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(slot)
+
                                 Checkbox(
                                     checked = checkedState[index],
                                     onCheckedChange = { checked ->

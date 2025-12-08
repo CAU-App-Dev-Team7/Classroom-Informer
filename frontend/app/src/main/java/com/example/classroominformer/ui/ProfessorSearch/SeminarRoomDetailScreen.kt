@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.classroominformer.ui.components.TopBlueHeader
+import com.example.classroominformer.ui.components.TopBlueHeader   // ✅ FIXED IMPORT
 
 @Composable
 fun SeminarRoomDetailScreen(
@@ -20,14 +20,14 @@ fun SeminarRoomDetailScreen(
             .padding(bottom = 16.dp)
     ) {
 
-        // TOP HEADER
+        // ✅ TOP HEADER
         TopBlueHeader(
             title = "Classroom Informer",
             showBackButton = true,
             onBackClick = onBack
         )
 
-        // ROOM TITLE
+        // ✅ ROOM TITLE
         Text(
             text = roomId,
             style = MaterialTheme.typography.headlineSmall,
@@ -35,7 +35,7 @@ fun SeminarRoomDetailScreen(
                 .padding(start = 24.dp, top = 16.dp, bottom = 12.dp)
         )
 
-        // IMAGES
+        // ✅ IMAGES ROW (PLACEHOLDERS)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -56,7 +56,7 @@ fun SeminarRoomDetailScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // DETAILS
+        // ✅ DETAILS SECTION
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             Text("Other Details:", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
@@ -65,12 +65,12 @@ fun SeminarRoomDetailScreen(
             Text("• Air conditioning: Yes")
         }
 
-        // ⭐ SMALL SPACER ONLY — NOT FULL WEIGHT
+        // ✅ SMALL SPACER (NO WEIGHT)
         Spacer(modifier = Modifier.height(30.dp))
 
-        // RESERVE BUTTON (now visually aligned beautifully)
+        // ✅ RESERVE BUTTON
         Button(
-            onClick = { /* TODO */ },
+            onClick = { /* TODO: Hook to reservation logic */ },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(55.dp)
@@ -81,6 +81,3 @@ fun SeminarRoomDetailScreen(
         }
     }
 }
-
-
-

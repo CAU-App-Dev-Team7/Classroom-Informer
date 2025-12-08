@@ -10,7 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.classroominformer.ui.components.TopBlueHeader
+import com.example.classroominformer.ui.components.TopBlueHeader   // ✅ FIXED IMPORT
 
 @Composable
 fun SeminarRoomsListScreen(
@@ -27,7 +27,7 @@ fun SeminarRoomsListScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
 
-        // ⭐ SAME BLUE HEADER AS ALL OTHER SCREENS
+        // ✅ SAME BLUE HEADER AS ALL OTHER SCREENS
         TopBlueHeader(
             title = "Classroom Informer",
             showBackButton = true,
@@ -58,6 +58,7 @@ fun SeminarRoomsListScreen(
         }
     }
 }
+
 
 
 

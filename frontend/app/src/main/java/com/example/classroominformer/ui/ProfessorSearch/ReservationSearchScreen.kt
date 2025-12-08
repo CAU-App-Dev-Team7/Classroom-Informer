@@ -17,6 +17,7 @@ import com.example.classroominformer.ui.components.TopBlueHeader
 
 @Composable
 fun ReservationSearchScreen(
+    onBack: () -> Unit,                // ✅ ADD BACK HANDLER
     onSearchDone: () -> Unit
 ) {
     val timeSlots = listOf(
@@ -54,10 +55,11 @@ fun ReservationSearchScreen(
             .background(Color.White)
     ) {
 
-        // ⭐ SAME HEADER ACROSS ALL SCREENS
+        // ✅ BACK BUTTON ENABLED
         TopBlueHeader(
             title = "Classroom Informer",
-            showBackButton = false
+            showBackButton = true,
+            onBackClick = onBack
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -86,7 +88,9 @@ fun ReservationSearchScreen(
                 ) {
 
                     val selectedText = checkedState
-                        .mapIndexedNotNull { i, checked -> if (checked) timeSlots[i] else null }
+                        .mapIndexedNotNull { i, checked ->
+                            if (checked) timeSlots[i] else null
+                        }
                         .joinToString(", ")
 
                     Text(
@@ -99,7 +103,7 @@ fun ReservationSearchScreen(
                         Icons.Default.Search,
                         contentDescription = "Search",
                         modifier = Modifier.clickable {
-                            // Professor navigation → next screen
+                            // ✅ Professor navigation → next screen
                             onSearchDone()
                         }
                     )
@@ -127,6 +131,7 @@ fun ReservationSearchScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(slot)
+
                                 Checkbox(
                                     checked = checkedState[index],
                                     onCheckedChange = { checked ->
@@ -141,6 +146,8 @@ fun ReservationSearchScreen(
         }
     }
 }
+
+
 
 
 
