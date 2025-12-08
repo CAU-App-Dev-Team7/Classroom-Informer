@@ -12,7 +12,7 @@ android {
         version = release(36)
     }
 
-    // Load Supabase keys from local.properties (AGP 8+ version)
+    // Load Supabase keys from local.properties (AGP 8+)
     val localProps = gradleLocalProperties(rootDir, providers)
 
     defaultConfig {
@@ -22,17 +22,17 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Inject Supabase vars into BuildConfig
+        // Supabase values injected into BuildConfig
         buildConfigField(
-            "String",
-            "SUPABASE_URL",
-            "\"${localProps["SUPABASE_URL"]}\""
+            type = "String",
+            name = "SUPABASE_URL",
+            value = "\"${localProps["SUPABASE_URL"]}\""
         )
 
         buildConfigField(
-            "String",
-            "SUPABASE_KEY",
-            "\"${localProps["SUPABASE_KEY"]}\""
+            type = "String",
+            name = "SUPABASE_KEY",
+            value = "\"${localProps["SUPABASE_KEY"]}\""
         )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -55,8 +55,10 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
+        buildConfig = true   // ✅ enable BuildConfig so buildConfigField works
     }
 }
 
